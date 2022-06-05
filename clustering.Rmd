@@ -1,24 +1,32 @@
 ---
 title: "Clustering methods"
-author: "Denaldo Lapi, Francesco Aristei, Samy Chouity"
+author: "Denaldo Lapi, Francesco Aristei, Samy Chouiti"
 date: "`r format(Sys.time(), '%d %B %Y')`"
+fontsize: 10 pt
+geometry: margin=0.5in
 output:
-  word_document:
-    toc: yes
-    toc_depth: '2'
-    
   pdf_document:
-    toc: yes
-    toc_depth: '2'
-  html_document:
-    toc: yes
+    fig_width: 6
+    fig_height: 4
+    toc: true
     toc_depth: 2
+    number_sections: true
+    fig_caption: True
+    df_print: kable
+  html_document:
+    fig_width: 6
+    fig_height: 4
+    toc: true
+    toc_depth: 2
+    number_sections: true
+    fig_caption: True
+    df_print: kable
 subtitle: Hierarchical, Partitioning, and Model-based Clustering
 toc-title: Outline
 ---
-  
+
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE, fig.align="center")
 ```
 
 Delete all the possible objects of R that could have been left in memory:
@@ -49,7 +57,7 @@ library(factoextra)
 library(FactoMineR)
 ```
 
-## Exploratory data analysis
+# Exploratory data analysis
 
 The dataset we are going to analyze is about prostate cancer. It consists of p=12 variables of mixed type (8 continuous and 4 categorical) measured on a group of n=50 prostate cancer patients. These patients have either stage 3 or stage 4 prostate cancer.
 
@@ -97,7 +105,7 @@ Another possibility could be to encode them in some numeric way, but we should t
 
 Let's select only the numerical columns:
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 library(purrr)
 Prostate_reduced = Prostate[, c(1,2,5,6,8,9,10,11)]
 ```
@@ -133,7 +141,7 @@ We'll use the *chemometrics* package, which contains a function ('Moutlier') for
 
 At first, let's calculate the "Mahalanobis'" distances using the 'Moutlier' function, to which we provide as parameters the numeric data frame, the quantile cutoff point beyond which we want to identify points as outliers, and whether or not we want a plot:
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 #install.packages("chemometrics")
 library(chemometrics)
 md <- Moutlier(Prostate_reduced, quantile = 0.975, plot=FALSE)
@@ -158,7 +166,7 @@ The algorithm we are going to use (from the package [DDoutlier](https://rdrr.io/
 
 Therefore, the function returns a vector of LOF scores for each observation: the greater the LOF, the greater the outlierness of the data point.
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 #install.packages('DDoutlier')
 library("DDoutlier")
 lof <- LOF(Prostate_reduced, k = 5) # outlier score with a neighborhood of 5 points
@@ -230,7 +238,7 @@ The outliers have been correctly removed!
 
 Check variables correlation:
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 library(GGally)
 ggpairs(Prostate_no_outliers,
         title="Correlation matrix. Phoneme data")
@@ -240,7 +248,7 @@ Let's now check the univariate distribution of each variable.
 
 We'll use the density plot:
 
-```{r}
+```{r message=FALSE,warning=FALSE}
 library(gridExtra)
 library(ggplot2)
 g1 <- ggplot(Prostate_no_outliers, aes(x=age)) + geom_density(alpha=0.8)
@@ -258,10 +266,8 @@ grid.arrange(g1,g2, nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=
 A better approach for a visual inspection is the *Q-Q plot*, which shows the distribution of the data against the expected normal distribution. In particular, for normally distributed data, observations should lie approximately on a straight line. If the data is non-normal, the points form a curve that deviates markedly from a straight line. Let's perform such plot for each predictor, by using the library *ggpubr*:
 
 
-```{r}
-library(gridExtra)
+```{r message=FALSE,warning=FALSE}
 library(ggpubr)
-library(ggplot2)
 
 g1 <- ggqqplot(Prostate_no_outliers, x="age", col=2, ggtheme = theme_gray(), title = "age Q-Q plot")
 g2 <- ggqqplot(Prostate_no_outliers, x="wt", col=2, ggtheme = theme_gray(), title = "wt Q-Q plot")
@@ -271,7 +277,7 @@ g5 <- ggqqplot(Prostate_no_outliers, x="hg", col=2, ggtheme = theme_gray(), titl
 g6 <- ggqqplot(Prostate_no_outliers, x="sz", col=2, ggtheme = theme_gray(), title = "sz Q-Q plot")
 g7 <- ggqqplot(Prostate_no_outliers, x="sg", col=2, ggtheme = theme_gray(), title = "sg Q-Q plot")
 g8 <- ggqqplot(Prostate_no_outliers, x="ap", col=2, ggtheme = theme_gray(), title = "ap Q-Q plot")
-grid.arrange(g1,g2, nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=1); grid.arrange(g7,g8,nrow=1)
+grid.arrange(g1,g2, nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=1);grid.arrange(g7,g8,nrow=1)
 
 ```
 
@@ -280,7 +286,6 @@ The plots above clearly show that most of the variables does not follow a normal
 To have more precise insights, we can apply the normality [Shapiro-Wilk normality test](https://en.wikipedia.org/wiki/Shapiro%E2%80%93Wilk_test) to each variable:
 
 ```{r}
-
 print(shapiro.test(Prostate_no_outliers$age))
 print(shapiro.test(Prostate_no_outliers$wt))
 print(shapiro.test(Prostate_no_outliers$sbp))
@@ -289,7 +294,6 @@ print(shapiro.test(Prostate_no_outliers$hg))
 print(shapiro.test(Prostate_no_outliers$sz))
 print(shapiro.test(Prostate_no_outliers$sg))
 print(shapiro.test(Prostate_no_outliers$ap))
-
 ```
 
 The low p-values (\<0.05) for the variables 'age', 'dbp', 'sz', 'ap', 'sg' reject the null hypotheses as we expected from the plots.
@@ -353,7 +357,7 @@ Since *agnes* returns also the 'agglomerative coefficient', we'll compare the so
 
 Let's compare the 4 approaches, by using the euclidean distance among points:
 
-```{r, include=TRUE}
+```{r message=FALSE,warning=FALSE, include=TRUE}
 # vector of methods to compare
 m <- c("average", "single", "complete", "ward")
 names(m) <- c( "average", "single", "complete", "ward")
@@ -405,7 +409,7 @@ rect.hclust(agnes.ward, k = 3, border = 2:5)
 After having performed hierarchical clustering using the agglomerative approach, it makes sense to apply the divisive option: To do so we use the _diana_  algorithm.
 The function _diana_ works in a similar way to agnes with 2 small differences: there is *no method argument here*, and instead of the agglomerative coefficient, we have a division coefficient.
 
-```{r, include=TRUE}
+```{r message=FALSE,warning=FALSE, include=TRUE}
 library(dendextend)
 diana_dend <- diana(Prostate_no_outliers_sc) %>% as.dendrogram
 diana_dend <- color_branches(diana_dend, k = 2)
@@ -470,7 +474,7 @@ rect.hclust(diana.hc, k = 3, border = 2:5)
 
 We can compare the partitions obtained throught the two approaches by using a _tanglegram_ which makes us able to compare the two dendograms by drawing links between them:
 
-```{r, include=TRUE}
+```{r message=FALSE,warning=FALSE,include=TRUE}
 library(dendextend)
 diana_dend <- diana.hc %>% as.dendrogram
 tanglegram(agnes_dend, diana_dend)
@@ -642,7 +646,7 @@ fviz_gap_stat(gap_stat)
 
 A more robust way could be to use the R package and function _NBclust_, which provides 30 indexes for determining the number of clusters and proposes to use the best clustering scheme from the different results obtained by varying all combinations of number of clusters, distance measures, and clustering methods:
 
-```{r, include=TRUE}
+```{r message=FALSE,warning=FALSE,include=TRUE}
 library(NbClust)
 nc <- NbClust(Prostate_no_outliers_sc, min.nc=2, max.nc=10, method="kmeans")
 ```
@@ -749,12 +753,11 @@ The function we'll use describes the obtained model with a character string comp
 * the third to orientation
 
 In details: character E stands for "equal", V for "variable" and I for "coordinate axes".
-The available models are those reported in the following picture:
-![](mclust.png)
+
 
 Let's now load the library of interest:
 
-```{r, include=TRUE}
+```{r message=FALSE,warning=FALSE, include=TRUE}
 library(mclust)
 ```
 We can now perform the fitting and print a summary of the obtained model:
@@ -766,8 +769,8 @@ summary(mc) # Print a summary
 
 The lowest the BIC, the better the model fits to the data: in this case we have a strongly negative BIC.
 The above output shows that the optimal model returned by the algorithm  is composed by 2 clusters with respectively 28 and 18 observations. We therefore obtained a different result with respect to the previously considered methods which return 3 clusters in most of the cases.
-Ww think this is a more realistic scenario, considering that our data is about patients that have either stage 3 or stage 4 prostate cancer: therefore we suppose that the found clusters separate people with this two cancer stages.
-The optimal selected model name is a VVI model (see picture above): that is the 2 spotted clusters are ellipsoidal with varying volume, varying shape and the orientation is the identity (I) or "coordinate axes'". 
+We think this is a more realistic scenario, considering that our data is about patients that have either stage 3 or stage 4 prostate cancer: therefore we suppose that the found clusters separate people with this two cancer stages.
+The optimal selected model name is a VVI model: it means that the 2 spotted clusters are ellipsoidal with varying volume, varying shape and the orientation is the identity (I) or "coordinate axes". 
 
 To better understand the results of the algorithm, we can analyze one by one the outputs of the *Mclust* function:
 
@@ -789,7 +792,7 @@ mc$z  %>%
 ```
 
 We know that model-based clustering is a soft-clustering technique: therefore we have for each sample a probability to belong to each one of the clusters.
-The above table, shows that for this sample of data, the assignment of points to clusters is pretty strong, since we have high probabilities for each observation to belogn to a single specific cluster.
+The above table, shows that for this sample of data, the assignment of points to clusters is pretty strong, since we have high probabilities for each observation to belong to a single specific cluster.
 
 We can also visualize the cluster allocation of each observation:
 ```{r, include=TRUE}                    
@@ -799,13 +802,14 @@ head(mc$classification,10) # first 10 observations
 We can use the function  _plot.Mclust_ in the  *mclust* package to plot the results of the algorithm. Some graphs can be plotted by using the *factoextra* package, which uses _ggplot2_ providing a better plotting style.
 
 We can  graph the *BIC values* used for choosing the number of clusters:
-```{r, include=TRUE}
+```{r message=FALSE,warning=FALSE, include=TRUE}
 library(factoextra)
 fviz_mclust(mc, "BIC", palette = "jco")
 ```
+
 We can modify the above graph to show only the final optimal model we are interested in using the function *fviz_mclust_bic*:
 
-```{r, include=TRUE}
+```{r message=FALSE,warning=FALSE, include=TRUE}
 library(factoextra)
 fviz_mclust_bic(mc, model.names=mc$modelName, palette = "jco")
 ```
@@ -825,7 +829,8 @@ Ellipses corresponding to covariances of mixture components are also drawn if _a
 ```{r, include=TRUE}
 plot.Mclust(mc, what="classification", addEllipses = TRUE)
 ``` 
-The above plots are not very clear due to the high number of variables used for performing the clustering: indeed they show the found cluster in the graph with each group of 2 variables. The above plots show for instance that variables 'sg' and 'ap' are very discriminatory for the separation of points into the 2 groups.
+
+The above plots are not very clear due to the high number of variables used for performing the clustering: indeed they show the found clusters in the graph with each group of 2 variables. The above plots show for instance that variables 'sg' and 'ap' are very discriminatory for the separation of points into the 2 groups.
 
 We may prefer to show the clustering result in the first factorial plane (obtained through PCA). To do that we can use the *factoextra* package wich performs a PCA to show the results in the first 2 PCs:  
 
@@ -833,6 +838,7 @@ We may prefer to show the clustering result in the first factorial plane (obtain
 fviz_mclust(mc, "classification", geom = "point", 
             pointsize = 1.5, palette = "jco")
 ```
+
 In the 1st factorial plane the 2 clusters are pretty well separated by the diagonal of the 1st quadrant.
 
 
@@ -841,26 +847,32 @@ We can now plot the classification uncertainty:
 ```{r, include=TRUE}
 plot.Mclust(mc, what="uncertainty")
 ``` 
+
 In this plot, _larger symbols indicate the more uncertain observations_. The package *factoextra* provides a better visualization for classification uncertainty on the first factorial plane (first 2 PCs):
 
 ```{r, include=TRUE}
 fviz_mclust(mc, "uncertainty", palette = "jco")
 ```
-The plot shows that there are 2 points outside the 2 represented densities, with one of them (around poisition (2,2)) showed with high size, indicating a pretty strong uncertainty in its clusters association.
+
+The plot shows that there are some points outside the 2 represented densities, with one of them (around position (2,2)) showed with high size, indicating a pretty strong uncertainty in its cluster association.
 
 
-We can also visaulize a plot of the estimated density: 
+We can also visualize a plot of the estimated density: 
+
 ```{r, include=TRUE}
 plot.Mclust(mc, what="density", type = "image", col="steelblue", grid = 200)
 ```
-We can also show 3D graphs of the estimated denisities:
+
+We can also show 3D graphs of the estimated densities:
+
 ```{r, include=TRUE}
 plot.Mclust(mc, what="density", type="persp")
 ```
-The density estimation shows the estimated densities by considering eahc pair of variables: we can see that only some planes show 2 estimated Gaussians, while the planes of some variables are not able to discriminate the 2 clusters. For instance, all the plots cosidering variable 'sg' show very clearly the 2 densities.
+
+The density estimation shows the estimated densities by considering each pair of variables: we can see that only some planes show 2 estimated Gaussians, while the planes of some variables are not able to discriminate the 2 clusters. For instance, all the plots considering variable 'sg' show very clearly the 2 densities.
 
 
-For instance, to better show the results we discussed above, we may plot the data using only two variables of interest: we can select 'sg' as one of them (since, as said before, it discriminates very well the 2 groups) and 'dbp':
+To better show the results we discussed above, we may plot the data using only two variables of interest: we can select 'sg' as one of them (since, as said before, it discriminates very well the 2 groups) and 'dbp':
 
 ```{r, include=TRUE}
 # Classification: plot showing the clustering
@@ -868,27 +880,30 @@ fviz_mclust(mc, "classification", geom = "point",
             pointsize = 1.5, palette = "jco", 
             choose.vars = c("sg", "dbp"))
 ```
+
 As expected, these 2 variables are pretty good in discrimating the 2 groups.
 
 
 
 It is possible to use also another dimensionality reduction method for visualizing the clustering structure obtained from a finite mixture of Gaussian densities with the function *MclustDR*. 
 
-The estimated directions which span the reduced subspace are defined as a set of *linear combinations of the original features, ordered by importance as quantified by the associated eigenvalues*.
+The estimated directions which span the reduced subspace are defined as a set of *linear combinations of the original features, ordered by importance as quantified by the associated eigenvalues*:
 
 
 ```{r, include=TRUE}
 drmc <- MclustDR(mc, lambda = 1)
 summary(drmc)
 ```
-In our case, the above method reduced the data to only 1 direction, which captures most of the clustering structure found with the model-based algorihm.
+
+In our case, the above method reduced the data to only 1 direction, which captures most of the clustering structure found with the model-based algorithm.
 
 
 The projected plot on this new direction would be:
 ```{r, include=TRUE}
 plot(drmc, what = "contour")
 ```
-The plot allows to visualize, with a sort of box-plot, also the uncertainty in assigning the obsevations into the 2 clusters.
+
+The plot allows to visualize, with a sort of box-plot, also the uncertainty in assigning the observations into the 2 clusters.
 The box-plots show also the values in the new direction (Dir1) of the observations in each cluster, and we can see that the data are very well classified into 2 groups.
 
 We can also visualize the density:
