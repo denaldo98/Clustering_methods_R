@@ -3,11 +3,14 @@ title: "Clustering methods"
 author: "Denaldo Lapi, Francesco Aristei, Samy Chouity"
 date: "`r format(Sys.time(), '%d %B %Y')`"
 output:
+  word_document:
+    toc: yes
+    toc_depth: '2'
+  always_allow_html: true
   pdf_document:
     toc: yes
     toc_depth: '2'
   html_document:
-    number_sections: yes
     toc: yes
     toc_depth: 2
 subtitle: Hierarchical, Partitioning, and Model-based Clustering
@@ -48,12 +51,10 @@ library(FactoMineR)
 
 ## Exploratory data analysis
 
-The dataset we are going to analyze is about prostate cancer.
-It consists of p=12 variables of mixed type (8 continuous and 4 
-categorical) measured on a group of n=50 prostate cancer patients. These patients have either 
-stage 3 or stage 4 prostate cancer.
+The dataset we are going to analyze is about prostate cancer. It consists of p=12 variables of mixed type (8 continuous and 4 categorical) measured on a group of n=50 prostate cancer patients. These patients have either stage 3 or stage 4 prostate cancer.
 
-Load the data from the R image 'Prostate.RData'.
+
+Let's load the data from the R image 'Prostate.RData'.
 
 ```{r}
 load("Prostate.RData")
@@ -73,13 +74,12 @@ Check the structure:
 str(Prostate)
 ```
 
-
 We can print a portion (a sample of 10) of the table using kable and the pipe operator:
 
 ```{r}
 Prostate %>%
   sample_n(., 10, replace=FALSE) %>% 
-  kbl(caption = "Phoneme data set (sample of 20)") %>%
+  kbl(caption = "Prostate cancer data set (sample of 20)") %>%
   kable_classic(full_width = F, html_font = "Cambria")
 ```
 
@@ -88,12 +88,12 @@ Let's now visualize some basic statistics on each of the data frame's columns wi
 ```{r}
 Prostate %>% 
   summary(.) %>% 
-  kbl(caption = "Basic statistics. Cancer data set") %>%
+  kbl(caption = "Basic statistics. Prostate cancer data set") %>%
   kable_classic(full_width = F, html_font = "Cambria")
 ```
 
-Since clustering methods we analyzed work by considering a continuous domain, i.e. continuous varaibles, we'll remove the cageorical ones.
-Another possibility could be to encode them in some numeric way, but we should take care of the distance measure to use in the hierarchial and k-means algorithms, which is difficutl to express in case of categorical variables.
+Since clustering methods we analyzed work by considering a continuous domain, i.e. continuous variables, we'll remove the categorical ones.
+Another possibility could be to encode them in some numeric way, but we should take care of the distance measure to use in the hierarchical and k-means algorithms, which is difficult to express in case of categorical variables (euclidean distances doesn't make a lot of sense in the case of categorical variables, we should considere other types of distances).
 
 Let's select only the numerical columns:
 
@@ -152,7 +152,7 @@ outliers <- which(md$md > md$cutoff)
 head(outliers, 10) # show first 10 outliers according to Malhanobis distance
 ```
 
-One way for identifying multivariate outliers (non-parametric approach) is to use the LOF ("local outlier factor") algorithm, which identifies density-based local outliers.
+Another approach for identifying multivariate outliers (non-parametric approach) is to use the LOF ("local outlier factor") algorithm, which identifies density-based local outliers.
 
 The algorithm we are going to use (from the package [DDoutlier](https://rdrr.io/cran/DDoutlier/man/LOF.html)) computes a local density for observations with a given k-nearest neighbors (we choose k = 5). This local density is compared to the density of the respective nearest neighbors, resulting in the local outlier factor.
 
@@ -197,22 +197,24 @@ sort(lof_with_names, decreasing = TRUE)[1:5]
 Let's first find the indexes of the outliers with a lof score above 2.0:
 
 ```{r}
-outliers <- which(lof > 2.0)
+outliers_lof <- which(lof > 2.0)
 ```
 
 Number of detected outliers:
 
 ```{r}
-length(outliers)
+length(outliers_lof)
 ```
 
 ```{r}
-outliers
+outliers_lof
 ```
-We will simply remove the found outliers (found with LOF) from the dataset, considering that we have more than 4k observations:
+
+
+We will simply remove the found outliers (found with lof) from the dataset (taking into account that k-means algorithm is very sensible to outliers):
 
 ```{r}
-Prostate_no_outliers = Prostate_reduced[-outliers,] 
+Prostate_no_outliers = Prostate_reduced[-outliers_lof,] 
 ```
 
 Let's now check again the dimensions:
@@ -273,9 +275,9 @@ grid.arrange(g1,g2, nrow=1); grid.arrange(g3,g4,nrow=1);grid.arrange(g5,g6,nrow=
 
 ```
 
-MODIFICAREEEEEEThe plots above clearly show that none of the predictors (except for the first one) follows a normal distribution, since the points do not fall along the reference line.
+The plots above clearly show that most of the variables does not follow a normal distribution.
 
-To have more precise insights, we can apply the normality [Shapiro-Wilk normality test](https://en.wikipedia.org/wiki/Shapiro%E2%80%93Wilk_test) to each predictor:
+To have more precise insights, we can apply the normality [Shapiro-Wilk normality test](https://en.wikipedia.org/wiki/Shapiro%E2%80%93Wilk_test) to each variable:
 
 ```{r}
 
@@ -290,17 +292,16 @@ print(shapiro.test(Prostate_no_outliers$ap))
 
 ```
 
-The low p-values (\<0.05) reject the null hypotheses for every variable (from x.1 to x.10), as we expected from the plots.
+The low p-values (\<0.05) for the variables 'age', 'dbp', 'sz', 'ap', 'sg' reject the null hypotheses as we expected from the plots.
 
 
-The clustering techniques are not limited to distance-based methods where we seek groups of statistical units that are unusually close to each other, in a geometrical sense. There are also a range of techniques relying on density (clusters are seen as "regions" in the feature space) or probability distribution.
-
-The methods related to **distance-based methods** (e.g. hierarchical clustering & k-means) **has nothing to do with whether the variables** belong to some known distribution such as the **normal distribution**. For this reason we do not apply any transformation to change variables distributions.
+However, clustering techniques related to **distance-based methods** (e.g. hierarchical clustering & k-means) **has nothing to do with whether the variables** belong to some known distribution such as the **normal distribution**. For this reason we do not apply any transformation to change variables distributions.
 
 
-#### Scaling
+### Scaling
 
-The **units** of the variables might have **an influence** in the clustering results. As we do not want the hierarchical clustering algorithm to depend on a variable with very large units and, therefore, the result of the clustering is dominated by a variable with large units, what is usually done is to **scale (standardize) each variable**.
+The **units** of the variables might have **an influence** in the clustering results for what regards clustering methods based on distances such as k-means and the hierarchical one. 
+We do not want the results of those clustering methods to depend on a variable with very large units, so we **scale (standardize) each variable**:
 
 ```{r}
 Prostate_no_outliers_sc <- Prostate_no_outliers %>%
@@ -312,7 +313,7 @@ We can print a sample of the scaled table to see the new units:
 ```{r}
 Prostate_no_outliers_sc %>%
   sample_n(., 10, replace=FALSE) %>% 
-  kbl(caption = "Phoneme data set (sample of 20)") %>%
+  kbl(caption = "Prostate cancer data set (sample of 20)") %>%
   kable_classic(full_width = F, html_font = "Cambria")
 ```
 
@@ -321,7 +322,7 @@ Let's print again the basic statistics:
 ```{r}
 Prostate_no_outliers_sc %>% 
   summary(.) %>% 
-  kbl(caption = "Basic statistics. Prostate data set") %>%
+  kbl(caption = "Basic statistics. Prostate cancer data set") %>%
   kable_classic(full_width = F, html_font = "Cambria")
 ```
 
@@ -329,6 +330,7 @@ As we can see, we have now zero mean.
 
 
 # Hierarchical clustering
+
 In this section we are going to apply various hierarchical clustering methods that allow to draw dendrograms, and then we'll compare their results.
 
 The first experiment that we are going to run is to differentiate agglomerative and divisive clustering:
@@ -336,20 +338,20 @@ The first experiment that we are going to run is to differentiate agglomerative 
 * Agglomerative Clustering: also known as a bottom-up approach, starts with singletons and then agglomerates them based on their distances until having a group containing the whole set of elements.
 * Divisive Clustering: also known as a top-down approach, starts with one group (or cluster) containing every element, then divides them using a splitting method until reaching singletons clusters.
 
-An important parameter of the algorithm is the distance measure to apply for caclulating the distances between points. 
+An important parameter of the algorithm is the distance measure to apply for calculating the distances between points. 
 A further parameter is needed to calculate the distance between groups. We'll explore all of them in the following.
 
 ## Agglomerative hierarchical clustering
-To experiment the agglomerative hierarchical clustering, we'll use the *agnes* (footnote: https://www.rdocumentation.org/packages/cluster/versions/2.1.2/topics/agnes) package (agglomerative nesting). 
-We'll compute agglomerative hierarchial clustering using the euclidean distance for the points, while we'll compare 4 different approaches for what regards groups distances:
+To experiment the agglomerative hierarchical clustering, we'll use the *agnes* package.
+We'll compute agglomerative hierarchical clustering using the euclidean distance for the points, while we'll compare 4 different approaches for what regards groups distances:
 - Simple linkage
 - Average linkage
 - Complete linkage
 - Ward criterion
 
-Since *agnes* returns also the 'agglomerative coefficient', we'll compare the solutions obtained through the distance approaches we mentioned above using the agglomerative coefficient that the amount of clustering structure found (values closer to 1 suggest a strong clustering structure)
+Since *agnes* returns also the 'agglomerative coefficient', we'll compare the solutions obtained using the various distance approaches we mentioned above using the agglomerative coefficient that represents the amount of clustering structure found (values closer to 1 suggest a strong clustering structure).
 
-Let's compare the 4 appraches, by usign the euclidean distance among points:
+Let's compare the 4 approaches, by using the euclidean distance among points:
 
 ```{r, include=TRUE}
 # vector of methods to compare
@@ -363,7 +365,6 @@ ac <- function(x) {
 library(purrr)
 map_dbl(m, ac)
 ```
-TODO: LATEX TABLE OF AGGLO COEFS
 
 Among the 4 distance computation methods, Ward's method gave us the highest agglomerative coefficient.
 Therefore, we can inspect its dendrogram:
@@ -373,16 +374,12 @@ agnes.ward <- agnes(Prostate_no_outliers_sc, method = "ward")
 agnes_dend <- agnes.ward %>% as.dendrogram
 pltree(agnes.ward, cex = 0.6, hang = -1, main = "Dendrogram of agnes")
 ```
-TODO: dendogram FIGURE
 
 ### Cutting the tree
 
-In hierarchical clustering, we should decide where to cut the dendrogram, in order to obtain an actual asssignment of observations to clusters: this means that we should decide the optimal number of clusters.
+In hierarchical clustering we should decide where to cut the dendrogram, in order to obtain an actual assignment of observations to clusters: this means that we should decide the optimal number of clusters.
 
-We can do that with the function *cutree*
-https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/cutree
-
-_cutree_ cuts a tree, e.g., as resulting from hclust, diana, or agnes, into several groups either by specifying the desired number(s) of groups (k) or the cut height(s) (h).
+We can do that with the function *cutree* which cuts a tree into several groups either by specifying the desired number of groups or the cut height.
 
 One typical approach consists in cutting the tree where the branches are quite long: in the above dendrogram we can see that this happens at a height between 8 and 9, where we have 3 clusters. 
 Let's then perform the cutting:
@@ -391,8 +388,7 @@ Let's then perform the cutting:
 (clust <- cutree(agnes.ward, k = 3)) 
 ```
 
-In order to graph those clusters, we can use the function *fviz_cluster* from the package _factorextra_
-https://www.rdocumentation.org/packages/factoextra/versions/1.0.7/topics/fviz_cluster
+In order to graph those clusters, we can use the function *fviz_cluster* from the package _factorextra_:
 
 ```{r, include=TRUE}
 fviz_cluster(list(data = Prostate_no_outliers_sc, cluster = clust))
@@ -404,13 +400,10 @@ We can also depict the clusters within the dendrogram in this way:
 pltree(agnes.ward, hang=-1, cex = 0.6)
 rect.hclust(agnes.ward, k = 3, border = 2:5)
 ```
-## Divisive hierarchical clustering
-After having performed hierarchical clustering using the agglomerative approach, it makes sense to apply the divisive option.
-To do so we use the _diana_  algorithm.
-The _diana_ function in the cluster package helps us to perform *divisive hierarchical groupings*. 
-The function _diana_ works in a similar way to agnes.
-However, there is *no method argument here*, and instead of the agglomerative coefficient, we have a division coefficient.
 
+## Divisive hierarchical clustering
+After having performed hierarchical clustering using the agglomerative approach, it makes sense to apply the divisive option: To do so we use the _diana_  algorithm.
+The function _diana_ works in a similar way to agnes with 2 small differences: there is *no method argument here*, and instead of the agglomerative coefficient, we have a division coefficient.
 
 ```{r, include=TRUE}
 library(dendextend)
@@ -419,20 +412,21 @@ diana_dend <- color_branches(diana_dend, k = 2)
 
 ```
 
-We proceed now in computing the divisive coefficient.
-A divisive coefficient (DC) closer to one suggests stronger group distinctions
+We proceed now in computing the divisive coefficient: if it is closer to one suggests stronger group distinctions.
 The divisive coefficient is:
 
 ```{r, include=TRUE}
 diana.hc <- diana(Prostate_no_outliers_sc)
 diana.hc$dc
 ```
-We obtain a value slightly lower than the agglomeration coefficient obtained with the agglomerative approach (0.8309064).
+
+We obtain a value slightly lower than the agglomerative coefficient obtained with the agglomerative approach (0.8309064).
 
 Finally, we plot of the dendogram:
 ```{r, include=TRUE}
 pltree(diana.hc, cex = 0.6, hang = -1, main = "Dendrogram of diana")
 ```
+
 ### Cutting the tree
 
 By looking at the length of the branches, the above dendrogram suggests to cut at a height around 6, which gives us 4 clusters.
@@ -448,14 +442,15 @@ We can graph the clusters:
 ```{r, include=TRUE}
 fviz_cluster(list(data = Prostate_no_outliers_sc, cluster = clust))
 ```
-It seems that the 4th cluster is not well representative of a cluss of individuals: indeed it is formed only by 2 observation. 
-We therefore re-perform the cutting with k=3: 
 
+It seems that the 4th cluster is not well representative of a class of individuals: indeed it is formed only by 2 observations. 
+We therefore re-perform the cutting with k=3: 
 
 ```{r, include=TRUE}
 (clust <- cutree(diana_dend, k = 3)) 
 ```
-We can graph the clusters:
+
+We can graph again the clusters:
 
 ```{r, include=TRUE}
 fviz_cluster(list(data = Prostate_no_outliers_sc, cluster = clust))
@@ -471,15 +466,16 @@ rect.hclust(diana.hc, k = 3, border = 2:5)
 ```
 
 
-
 ## Comparing agglomerative and divisive methods
-We can compare the partitions obtained throught the two approaches by using a _tanglegram_ which makes us able to compare the two dendograms by drawing links between them.
+
+We can compare the partitions obtained throught the two approaches by using a _tanglegram_ which makes us able to compare the two dendograms by drawing links between them:
 
 ```{r, include=TRUE}
 library(dendextend)
 diana_dend <- diana.hc %>% as.dendrogram
 tanglegram(agnes_dend, diana_dend)
 ```
+
 A better way to visualize the differences among the partitions obtained with the 2 algorithms, is to visualize the 2 dendrograms one below the other:
 
 ```{r}
@@ -489,6 +485,7 @@ rect.hclust(agnes.ward, k = 3, border = 2:5)
 pltree(diana.hc, hang=-1, cex = 0.6)
 rect.hclust(diana.hc, k = 3, border = 2:5)
 ```
+
 The 3 clusters are slighlty different between the methods: for instance we can see that the 'green' cluster is bigger in 'diana' with respect to 'agnes'.
 
 
@@ -522,36 +519,40 @@ The function _HCPC_ returns a list containing:
 * *desc.axes*: The axes describing clusters
 
 Therefore, the *HCPC* function already performs an initial partitioning. 
-We can know the number of clusters typing this:
+To know the number of clusters:
+
 ```{r, include=TRUE}
 unique(res.hcpc$data.clust$clust)
 ```
-The method returns the same number of clusters we found with the previous approaches.
 
+The method returns the same number of clusters we found with the previous approaches (3).
 Thus, let's display the original data with cluster assignments:
+
 ```{r, include=TRUE}
 res.hcpc$data.clust %>%
   sample_n(., 10, replace=FALSE) %>% 
   kbl(caption = "Cluster allocation (sample of 10)") %>%
   kable_classic(full_width = F, html_font = "Cambria")
 ```
+
 In the table above, the last column contains the cluster assignments.
 
 To display quantitative variables that describe the most each cluster:
+
 ```{r, include=TRUE}
 res.hcpc$desc.var$quanti
 ```
 
-Let's focus on columns "Mean in category" (the average within the corresponding group), "Overall Mean" (the overall mean in the data set), "p.value" (<0.05 means that there is significant difference between Overall mean and the mean within the corresponding group)
+Let's focus on columns "Mean in category" (the average within the corresponding group), "Overall Mean" (the overall mean in the data set), "p.value" (<0.05 means that there is significant difference between Overall mean and the mean within the corresponding group).
 
 From the output above, it can be seen that:
 
 * Cluster 1 is characterized by positive values of variables 'ap', 'sg', 'sz';
-* For what regard cluster 2, we have pretty high p-values with respect to the other clusters, but still we have p-values < 5% and therefore we can draw some conclusions. What we can say is that this cluster is characterized by negative (standardized) values of each one of the variables: for instance, with respect to cluster 1, in cluster 2 the variable 'sz' has a mean in the category of -0.37, while we have a positive value of the mean for the same variable on cluster 1. The same reasoning can be applied for the other variables variables 
+* For what regard cluster 2, we have pretty high p-values with respect to the other clusters, but still we have p-values < 5% and therefore we can draw some conclusions. What we can say is that this cluster is characterized by negative (standardized) values of each one of the variables: for instance, with respect to cluster 1, in cluster 2 the variable 'sz' has a mean in the category of -0.37, while we have a positive value of the mean for the same variable on cluster 1. The same reasoning can be applied for the other variables variables.
 * Cluster 3 has, on overall positive values for the varaible 'dbp' (which has negative mean in cluster 1 and 2); it has also positive value for variable 'sbp', which is also significant for cluster 2 where it has a negative mean. Also variable 'hg' has positive value in this cluster, and it's also significant in cluster 2 with negative mean value. Varaible 'wt' has also positive value in this cluster. So, overall cluster 3 is characterize by positive mean values (standardized) of the variables 'dbp', 'sbp', 'hg', 'wt'.
 
-
 To show principal dimensions that are the most associated with clusters:
+
 ```{r, include=TRUE}
 res.hcpc$desc.axes$quanti
 ```
@@ -562,12 +563,15 @@ The above output indicates that:
 * individuals in cluster 3 have positive coordinates on axes 1 and 2
 
 Representative individuals of each cluster can be extracted as follows:
+
 ```{r, include=TRUE}
 res.hcpc$desc.ind$para
 ```
+
 For each cluster, the top 5 closest individuals to the cluster center is shown. The distance between each individual and the cluster center is provided. For example, representative individuals for cluster 1 include individuals number 41, 8, 5, 32, 31
 
-To visualize the dendrogram generated by the hierarchical clustering, we use the function _fviz_dend_ ( _factoextra_ package):
+To visualize the dendrogram generated by the hierarchical clustering, we use the function _fviz_dend_ of the _factoextra_ package:
+
 ```{r, include=TRUE}
 fviz_dend(res.hcpc, 
           cex = 0.7,            # Label size
@@ -579,7 +583,7 @@ fviz_dend(res.hcpc,
           )
 ```
 
-As we did above, it is possible to visualize individuals on the principal component map and to color individuals according to the cluster they belong to. The function _fviz_cluster_ (package _factoextra_) can be used to visualize individuals clusters.
+As we did above, it is possible to visualize individuals on the principal component map and to color individuals according to the cluster they belong to. The function _fviz_cluster_ (package _factoextra_) can be used to visualize individuals clusters:
 
 ```{r, include=TRUE}
 fviz_cluster(res.hcpc,
@@ -590,10 +594,10 @@ fviz_cluster(res.hcpc,
              main = "Factor map"
              )
 ```
+
 What we can see from the above plot is that the HCPC method performs a quite good separation of the individuals on 3 clusters, which is perfectly described by the first factorial plane.
 
-
-We can also combine PCA and tree and depict a 3D plot combining the hierarchical clustering and the factorial map using the R base function _plot_
+We can also combine PCA and tree and depict a 3D plot combining the hierarchical clustering and the factorial map using the R base function _plot_:
 
 ```{r, include=TRUE}
 plot(res.hcpc, choice = "3D.map")
@@ -602,34 +606,33 @@ plot(res.hcpc, choice = "3D.map")
 
 # Partitioning clustering: k-means
 
-Let's now focus on the most famous partitioning clustering algorithm: k-means. It's a stable algorithm based on moving averages where, at each steps, elements are gathered into the closest group (in terms of Euclidean distance for example). An example of k-means clustering plots can be found in Figure TODO.
-
-Because the algorithm is based on arbitrary starting centroids, we will run it multiple times in order to make the most generalist conclusions possible about our data. \\
-
-To compute this algorithm, we will use the function *kmeans* from the R package _stats_ \footnote{https://www.rdocumentation.org/packages/stats/versions/3.6.2/topics/kmeans}.
+Let's now focus on the most famous partitioning clustering algorithm: k-means. It's a stable algorithm based on moving averages where, at each steps, elements are gathered into the closest group (in terms of Euclidean distance for example). 
+Because the algorithm is based on arbitrary starting centroids, we will run it multiple times in order to make the most generalist conclusions possible about our data.
+To compute this algorithm, we will use the function *kmeans* from the R package _stats_.
 
 ## Finding the number of clusters
 In order to have the most relevant method, we first need to find the optimal number of clusters (which is the number of centroids we will start with). We will use various methods:
-* Elbow method: Based on a plot of the within-cluster sum of squares (wss) and then identify the optimal number of clusters (or centers) at the bend (called elbow) on the plot
-* Silhouette method: Based on how well each object lies within a cluster 
-* Gap statistic method: based on null hypothesis, compares the total within-cluster variation using different k values on various samples of the data, using bootstrapping.
+* Elbow method: based on plotting the within-cluster sum of squares (wss) and then identifying the optimal number of clusters (or centers) at the bend (called elbow) of the plot.
+* Silhouette method: based on how well each object lies within a cluster.
+* Gap statistic method: based on a null hypothesis (statistical approach), compares the total within-cluster variation using different k values on various samples of the data, using bootstrapping.
 
 ```{r, include=TRUE}
+# set seed for repeating experiments
 set.seed(67600)
 ```
 
-The Elbow method for k-means (look at the knee)
+Elbow method:
 ```{r, include=TRUE}
 fviz_nbclust(Prostate_no_outliers_sc, kmeans, method = "wss") +
 geom_vline(xintercept = 2, linetype = 2)
 ```
 
-The average silhouette for k-means
+Average silhouette:
 ```{r, include=TRUE}
 fviz_nbclust(Prostate_no_outliers_sc, kmeans, method = "silhouette")
 ```
-Gap statistics:
 
+Gap statistics:
 ```{r, include=TRUE}
 # we used B = ~500
 gap_stat <- clusGap(Prostate_no_outliers_sc, FUN = kmeans, 
@@ -637,18 +640,14 @@ gap_stat <- clusGap(Prostate_no_outliers_sc, FUN = kmeans,
 fviz_gap_stat(gap_stat)
 ```
 
-
-A more robust way could be to use the R package and function _NBclust_, which provides 30 indexes for determining the number of clusters and proposes to user the best clustering scheme from the different results obtained by varying all combinations of number of clusters, distance measures, and clustering methods.
-
-
-https://www.rdocumentation.org/packages/NbClust/versions/3.0/topics/NbClust
+A more robust way could be to use the R package and function _NBclust_, which provides 30 indexes for determining the number of clusters and proposes to use the best clustering scheme from the different results obtained by varying all combinations of number of clusters, distance measures, and clustering methods:
 
 ```{r, include=TRUE}
 library(NbClust)
 nc <- NbClust(Prostate_no_outliers_sc, min.nc=2, max.nc=10, method="kmeans")
 ```
 
-We'll show the clusters for k=2 and k=3, which is the optimal value suggested by _NBclust_
+We'll show the clusters for k=2 and k=3, which is the optimal value suggested by _NBclust_.
 
 ```{r, include=TRUE}
 k2 <- kmeans(Prostate_no_outliers_sc, centers = 2, nstart = 25)
@@ -663,12 +662,11 @@ p2 <- fviz_cluster(k3, geom = "point",  data = Prostate_no_outliers_sc) + ggtitl
 
 grid.arrange(p1, p2, nrow = 1)
 ```
-From the plot above, we can graphically visualize the 2 explored case and it is clearly visible that the case with k=2 better separates the observations, without any overlapping.
 
-
+From the plot above, we can graphically visualize the 2 explored cases and it is clearly visible that the case with k=2 better separates the observations, without any overlapping.
 Since most of the methods suggested the case with k=3 (which is also the value we obtained in the hierarchical algorithms), let's do some more in-depth analysis to understand the meaning of the obtained clusters.
 
-We can compute the mean of each variables by cluster using the original data
+We can compute the mean of each variables by cluster using the original data:
 
 ```{r, include=TRUE}
 aggregate(Prostate_no_outliers_sc, by=list(cluster=k3$cluster), mean) %>% 
@@ -677,12 +675,11 @@ aggregate(Prostate_no_outliers_sc, by=list(cluster=k3$cluster), mean) %>%
 ```
 
 From the above table we can see the following:
-* Cluster 1 contains observations with (on average) negtive values along all the variables
-* Cluster 2 has positive averages for each variable, except for the last 3
-* Cluster 3 contains elements characterized by high values of the variables 'sz', 'sg' and 'ap'
+* Cluster 1 contains observations with (on average) negative values along all the variables.
+* Cluster 2 has positive averages for each variable, except for the last 3.
+* Cluster 3 contains elements characterized by high values of the variables 'sz', 'sg' and 'ap'.
 
-
-Let's check the cluster size
+Let's check the cluster size:
 ```{r, include=TRUE}
 k3$size
 ```
@@ -706,105 +703,83 @@ Let's apply the algorithm:
 res.hk <-hkmeans(Prostate_no_outliers_sc,3)
 ```
 
-Print the results
+Print the results:
+
 ```{r, include=TRUE}
 res.hk
 ```
 
-Visualize the dendrogram
+Visualize the dendrogram:
+
 ```{r, include=TRUE}
 fviz_dend(res.hk, cex = 0.6, palette = "jco", 
           rect = TRUE, rect_border = "jco", rect_fill = TRUE)
 ```
 
-Visualize the hkmeans final clusters
+Visualize the final clusters:
 ```{r, include=TRUE}
 fviz_cluster(res.hk, palette = "jco", repel = TRUE,
              ggtheme = theme_classic())
 ```
 
-
-# INTERPRETATION AND COMMENTS WITH RESULTS OF CLASSICAL KMEANS
 Let's visualize one beside the other the results of k-means and the hierarchical k-means we just performed, to visualize the eventual differences:
 
 ```{r}
-g1 <- fviz_cluster(k3,  data = Prostate_no_outliers_sc, palette = "jco")
+g1 <- fviz_cluster(k3,  data = Prostate_no_outliers_sc, palette = "jco", repel = TRUE)
 g2 <- fviz_cluster(res.hk, palette = "jco", repel = TRUE)
 grid.arrange(g1, g2)
 ```
 
-The plot shows that the introduction of the hierachical clustering initialization in the k-means improves the separation between the clusters, already found with classical k-means. Indeed the 3 groups are more separated in the 2nd case.
+The plot shows that the introduction of the hierachical clustering initialization in the k-means improves the separation between the clusters already found with classical k-means. Indeed the 3 groups are more separated in the 2nd case.
 
 # Model-based clustering
 
-In model-based clustering, the data is considered as coming from a mixture of distributions (i.e. mixture models). 
+In model-based clustering, the data is considered as coming from a mixture of distributions. 
 
-In our case, we consider a Gaussian mixture models, where each component k in the model can be considered as cluster and is modeled by the normal or Gaussian distribution which is characterized by the parameters:
+In our case, we consider a Gaussian mixture model, where each component k in the model can be considered as a cluster and is modeled by a normal distribution
 
-* mean vector $\mu_k$
-* covariance matrix $\Sigma_k$
-* an associated probability in the mixture. Each point has a probability of belonging to each cluster. $\pi_g$
+Model-based clustering doesn't require to do a standardization, but we'll use the standardized data to be able to compare the results of the different algorithms.
 
-Since we are using the COVARIANCE MATRIX, it is NOT REQUIRED to do a standardization, but we'll use the standardized data to be able to compare the results of the different algorithms.
+We'll use the R package *mclust* which estimates the model's parameters by EM algorithm initialized by hierarchical model-based agglomerative clustering.
+The optimal model is then selected according to the BIC criteria: 
 
-
-At first, let's load the MASS package:
-```{r message=FALSE,warning=FALSE}
-library(MASS)
-```
-
-The Rpackage *mclust* performs Model-based clustering based on parameterized finite Gaussian mixture models. In particular, models are estimated by EM algorithm initialized by hierarchical model-based agglomerative clustering. The optimal model is then selected according to the BIC criteria: A large BIC score indicates strong evidence for the corresponding model.
-The function we'll use denotes the model with a character string composed by 3 characters indicating the characteristics of the model at which the optimal BIC occurs: 
+The function we'll use describes the obtained model with a character string composed by 3 characters indicating the characteristics of the model at which the optimal BIC occurs: 
 * the first character refers to volume
 * the second to shape
-* the thirs to orientation
+* the third to orientation
 
-In details: E stands for "equal", V for "variable" and I for "coordinate axes".
-
-Remember the options of shape, volume, orientation of the cluster from R package mclust:
+In details: character E stands for "equal", V for "variable" and I for "coordinate axes".
+The available models are those reported in the following picture:
 ![](mclust.png)
 
-For example:
-
-* EVI denotes a model in which the volumes of all clusters are equal (E), the shapes of the clusters may vary (V), and the orientation is the identity (I) or “coordinate axes.
-* EEE means that the clusters have the same volume, shape and orientation in p-dimensional space.
-* VEI means that the clusters have variable volume, the same shape and orientation equal to coordinate axes.
-
-
-
-Let's fit the model-based clustering by using the 'Mclust' function:
-https://www.rdocumentation.org/packages/mclust/versions/5.4.7/topics/Mclust
+Let's now load the library of interest:
 
 ```{r, include=TRUE}
 library(mclust)
 ```
+We can now perform the fitting and print a summary of the obtained model:
 
 ```{r, include=TRUE}
 mc <- Mclust(Prostate_no_outliers_sc)
 summary(mc) # Print a summary
 ```
 
-The lowest the BIC, the better the model fits to the data.
-For this data, it can be seen that model-based clustering selected a model with 2 components (i.e. clusters). The optimal selected model name is VVI model. 
+The lowest the BIC, the better the model fits to the data: in this case we have a strongly negative BIC.
+The above output shows that the optimal model returned by the algorithm  is composed by 2 clusters with respectively 28 and 18 observations. We therefore obtained a different result with respect to the previously considered methods which return 3 clusters in most of the cases.
+Ww think this is a more realistic scenario, considering that our data is about patients that have either stage 3 or stage 4 prostate cancer: therefore we suppose that the found clusters separate people with this two cancer stages.
+The optimal selected model name is a VVI model (see picture above): that is the 2 spotted clusters are ellipsoidal with varying volume, varying shape and the orientation is the identity (I) or "coordinate axes'". 
 
-![](VVI.png)
+To better understand the results of the algorithm, we can analyze one by one the outputs of the *Mclust* function:
 
-That is the 4 components are ellipsoidal with varying volume, varying shape and the orientation is the identity (I) or "coordinate axes'". 
-
-The summary contains also the clustering table specifying the number of observations in each clusters: in this case we have 28 observation in the 1st cluster and 18 in the 2nd
-
-
-Let's now access the results provided by the *mclust* function:
-
-1. Optimal selected model
+Name of the optimal model:
 ```{r, include=TRUE}
 mc$modelName     
 ```
-2. Optimal number of cluster 
+Number of clusters in the optimal model:
 ```{r, include=TRUE}
 mc$G     
 ```
-3. Probability to belong to a given cluster 
+Probability to belong to a given cluster:
 ```{r, include=TRUE}
 mc$z  %>%
     as.data.frame(.) %>% 
@@ -813,199 +788,116 @@ mc$z  %>%
   kable_classic(full_width = F, html_font = "Cambria")
 ```
 
-We now that model-based clustering is a soft-clustering technique: therefore we have, for eah sample, a probability to belong to each one of the clusters.
-The above table, shows that for this sample of data, the assignment of points to clusters is pretty straightforward, since we have high probabilities for each observation.
+We know that model-based clustering is a soft-clustering technique: therefore we have for each sample a probability to belong to each one of the clusters.
+The above table, shows that for this sample of data, the assignment of points to clusters is pretty strong, since we have high probabilities for each observation to belogn to a single specific cluster.
 
-4. Cluster allocation of each observation
+We can also visualize the cluster allocation of each observation:
 ```{r, include=TRUE}                    
-head(mc$classification,10)
+head(mc$classification,10) # first 10 observations
 ```
 
-Model-based clustering results *can be drawn* using the base function _plot.Mclust_ in *mclust* package, which gives plots for model-based clustering results, such as _BIC_, _classification_, and _uncertainty_.
+We can use the function  _plot.Mclust_ in the  *mclust* package to plot the results of the algorithm. Some graphs can be plotted by using the *factoextra* package, which uses _ggplot2_ providing a better plotting style.
 
-https://www.rdocumentation.org/packages/mclust/versions/5.4.7/topics/plot.Mclust
-
-BIC: plot of BIC values used for choosing the number of clusters.
-```{r, include=TRUE}
-plot.Mclust(mc, what="BIC")
-``` 
-
-From *mclust*, we can obtain the top BIC ranking:
-```{r, include=TRUE}
-summary(mc$BIC)
-```
-
-Classification:a plot showing the clustering. Ellipses corresponding to covariances of mixture components are also drawn if _addEllipses = TRUE_.
-```{r, include=TRUE}
-plot.Mclust(mc, what="classification", addEllipses = FALSE)
-``` 
-
-With drawn ellipses:
-```{r, include=TRUE}
-plot.Mclust(mc, what="classification", addEllipses = TRUE)
-``` 
-
-Uncertainty: a plot of classification uncertainty
-```{r, include=TRUE}
-plot.Mclust(mc, what="uncertainty")
-``` 
-
-
-Note that, in the uncertainty plot, _larger symbols indicate the more uncertain observations_.
-
-Density: plot of estimated density
-```{r, include=TRUE}
-plot.Mclust(mc, what="density", type = "image", col="steelblue", grid = 200)
-```
-
-```{r, include=TRUE}
-plot.Mclust(mc, what="density", type="persp")
-```
-The density estimation only shows three clusters.
-
-Let's improve a bit those graphs using the *factoextra* package, which are more beautiful as they are based on _ggplot2_
-
-Let's graph the *BIC values* used for choosing the number of clusters
+We can  graph the *BIC values* used for choosing the number of clusters:
 ```{r, include=TRUE}
 library(factoextra)
 fviz_mclust(mc, "BIC", palette = "jco")
 ```
+We can modify the above graph to show only the final optimal model we are interested in using the function *fviz_mclust_bic*:
 
-In this graph, we can draw only the model that we are interested in using the function *fviz_mclust_bic*:
 ```{r, include=TRUE}
 library(factoextra)
 fviz_mclust_bic(mc, model.names=mc$modelName, palette = "jco")
 ```
 
+From *mclust*, we can obtain the top BIC ranking:
 
-Classification: plot showing the clustering
+```{r, include=TRUE}
+summary(mc$BIC)
+```
+
+By specifying the 'classification' paramerer we chan visualize a plot showing the clustering. 
+```{r, include=TRUE}
+plot.Mclust(mc, what="classification", addEllipses = FALSE)
+``` 
+
+Ellipses corresponding to covariances of mixture components are also drawn if _addEllipses = TRUE_.:
+```{r, include=TRUE}
+plot.Mclust(mc, what="classification", addEllipses = TRUE)
+``` 
+The above plots are not very clear due to the high number of variables used for performing the clustering: indeed they show the found cluster in the graph with each group of 2 variables. The above plots show for instance that variables 'sg' and 'ap' are very discriminatory for the separation of points into the 2 groups.
+
+We may prefer to show the clustering result in the first factorial plane (obtained through PCA). To do that we can use the *factoextra* package wich performs a PCA to show the results in the first 2 PCs:  
+
 ```{r, include=TRUE}
 fviz_mclust(mc, "classification", geom = "point", 
             pointsize = 1.5, palette = "jco")
 ```
+In the 1st factorial plane the 2 clusters are pretty well separated by the diagonal of the 1st quadrant.
 
-Classification uncertainty
+
+We can now plot the classification uncertainty:
+
+```{r, include=TRUE}
+plot.Mclust(mc, what="uncertainty")
+``` 
+In this plot, _larger symbols indicate the more uncertain observations_. The package *factoextra* provides a better visualization for classification uncertainty on the first factorial plane (first 2 PCs):
+
 ```{r, include=TRUE}
 fviz_mclust(mc, "uncertainty", palette = "jco")
 ```
+The plot shows that there are 2 points outside the 2 represented densities, with one of them (around poisition (2,2)) showed with high size, indicating a pretty strong uncertainty in its clusters association.
 
-Let's remember the number of objects by group:
+
+We can also visaulize a plot of the estimated density: 
 ```{r, include=TRUE}
-table(mc$classification)
+plot.Mclust(mc, what="density", type = "image", col="steelblue", grid = 200)
 ```
-We can consider that the cluster 2 is too small (only 17 objects). Thus, we can force the number of clusters (in this case G=3)
+We can also show 3D graphs of the estimated denisities:
 ```{r, include=TRUE}
-mc.G3 <- Mclust(geyser.sc, G=3)
-summary(mc.G3) # Print a summary
+plot.Mclust(mc, what="density", type="persp")
 ```
+The density estimation shows the estimated densities by considering eahc pair of variables: we can see that only some planes show 2 estimated Gaussians, while the planes of some variables are not able to discriminate the 2 clusters. For instance, all the plots cosidering variable 'sg' show very clearly the 2 densities.
 
-![](EEI.png)
 
-```{r, include=TRUE}
-fviz_mclust(mc.G3, "classification", geom = "point", 
-            pointsize = 1.5, palette = "jco")
-```
-
-In this example, we have only used two variables/predictors "waiting" and "duration". What would it happen if we use more than two predictors? Let's see it quickly with an example 
-
-Let's use *the diabetes data set* in _mclust_ package, which gives three measurements and the diagnosis for 145 subjects described as follows:
-```{r, include=TRUE}
-library("mclust")
-data("diabetes")
-diabetes %>% 
-  sample_n(., 10, replace=FALSE) %>% 
-  kbl(caption = "Diabetes data set (sample of 10)") %>%
-  kable_classic(full_width = F, html_font = "Cambria")
-```
-The variables are:
-
-* class: the diagnosis: normal, chemically diabetic, and overtly diabetic. Excluded from the cluster analysis.
-* glucose: plasma glucose response to oral glucose
-* insulin: plasma insulin response to oral glucose
-* sspg: steady-state plasma glucose (measures insulin resistance)
-
-Let's run the model-based clustering
-```{r, include=TRUE}
-library("mclust")
-df <- scale(diabetes[, -1]) # Standardize the data. We remove "class"
-mc2 <- Mclust(df)            # Model-based-clustering
-summary(mc2)                 # Print a summary
-```
-
-For this data, it can be seen that model-based clustering selected a model with *three components* (i.e. clusters). The optimal selected model name is *VVV model*. That is the three components are ellipsoidal with varying volume, shape, and orientation. The summary contains also the clustering table specifying the number of observations in each clusters.
-
-![](VVV.png)
-
-In the situation, where the data *contain more than two variables*, fviz_mclust() uses a *principal component analysis* to reduce the dimensionality of the data. 
-The first two principal components are used to produce a scatter plot of the data. 
-
-```{r, include=TRUE}
-# BIC values used for choosing the number of clusters
-fviz_mclust_bic(mc2, model.names=mc2$modelName, palette = "jco")
-# Classification: plot showing the clustering
-fviz_mclust(mc2, "classification", geom = "point", 
-            pointsize = 1.5, palette = "jco")
-# Classification uncertainty
-fviz_mclust(mc2, "uncertainty", palette = "jco")
-```
-
-However, if you want to plot the data using only two variables of interest, let say here c("insulin", "sspg"), you can specify that in the fviz_mclust() function using the argument _choose.vars = c("insulin", "sspg")_.
+For instance, to better show the results we discussed above, we may plot the data using only two variables of interest: we can select 'sg' as one of them (since, as said before, it discriminates very well the 2 groups) and 'dbp':
 
 ```{r, include=TRUE}
 # Classification: plot showing the clustering
-fviz_mclust(mc2, "classification", geom = "point", 
+fviz_mclust(mc, "classification", geom = "point", 
             pointsize = 1.5, palette = "jco", 
-            choose.vars = c("insulin", "sspg"))
+            choose.vars = c("sg", "dbp"))
 ```
+As expected, these 2 variables are pretty good in discrimating the 2 groups.
 
-As we have the class ( _diabetes$class_) in this example, we can see the accuracy of the clusters to the class
-The fitted model provides an accurate recovery of the true classes:
+
+
+It is possible to use also another dimensionality reduction method for visualizing the clustering structure obtained from a finite mixture of Gaussian densities with the function *MclustDR*. 
+
+The estimated directions which span the reduced subspace are defined as a set of *linear combinations of the original features, ordered by importance as quantified by the associated eigenvalues*.
+
 
 ```{r, include=TRUE}
-table(diabetes$class)
-#Confusion matrix
-table(diabetes$class, mc2$classification)
+drmc <- MclustDR(mc, lambda = 1)
+summary(drmc)
 ```
+In our case, the above method reduced the data to only 1 direction, which captures most of the clustering structure found with the model-based algorihm.
 
-You can observe the "label switching" problem
+
+The projected plot on this new direction would be:
 ```{r, include=TRUE}
-mc2$classification[which(mc2$classification==2)] <- 4
-mc2$classification[which(mc2$classification==1)] <- 2
-mc2$classification[which(mc2$classification==4)] <- 1
-table(diabetes$class, mc2$classification)
+plot(drmc, what = "contour")
 ```
+The plot allows to visualize, with a sort of box-plot, also the uncertainty in assigning the obsevations into the 2 clusters.
+The box-plots show also the values in the new direction (Dir1) of the observations in each cluster, and we can see that the data are very well classified into 2 groups.
 
-The accuracy is:
-```{r, include=TRUE}
-sum(diag(table(diabetes$class, mc2$classification)))/sum(table(diabetes$class, mc2$classification))
-```
-
-We can also evaluate a clustering solution with the Adjusted Rand Index (ARI). 
-The ARI is a measure of agreement between two partitions, one estimated by a statistical procedure independent of the labeling of the groups, and one being the true classification. It has zero expected value in the case of a random partition, and it is bounded above by 1, with *higher values representing better partition accuracy*. 
-```{r, include=TRUE}
-adjustedRandIndex(diabetes$class, mc2$classification)
-```
-
-We can also use another dimension reduction with the function *MclustDR*, which implements the methodology introduced in Scrucca (2010) (https://arxiv.org/pdf/1508.01713.pdf). The estimated directions which span the reduced subspace are defined as a set of *linear combinations of the original features, ordered by importance as quantified by the associated eigenvalues*.
-Thus, we apply *MclustDR*
+We can also visualize the density:
 
 ```{r, include=TRUE}
-drmc2 <- MclustDR(mc2, lambda = 1)
-summary(drmc2)
+plot(drmc, what = "density")
 ```
 
-The plot would be
+Save image of all objects created in the session:
 ```{r, include=TRUE}
-plot(drmc2, what = "contour")
-```
-
-On the same subspace we can also plot the uncertainty boundaries corresponding to the classification:
-```{r, include=TRUE}
-plot(drmc2, what = "boundaries", ngrid = 200)
-```
-
-
-Finally, I recommend to save an image of all objects created in the session.
-```{r, include=TRUE}
-save.image(file="R_Example_Clustering.RData")
+save.image(file="Clustering.RData")
 ```
